@@ -39,7 +39,7 @@ export default function AudioPlayer({ audioUrl, audioDuration }) {
 	const [, setIsLoaded] = useState(false);
 
 	// Number of bars in the waveform
-	const barCount = 40;
+	const barCount = 60;
 	const waveformHeights = generateWaveformHeights(barCount);
 
 	useEffect(() => {
@@ -179,7 +179,7 @@ export default function AudioPlayer({ audioUrl, audioDuration }) {
 						return (
 							<div
 								key={`bar-${index}`}
-								className={`w-1 rounded-full transition-colors ${
+								className={`flex-1 min-w-[2px] max-w-[6px] rounded-full transition-colors ${
 									isActive ? "bg-gray-900" : "bg-gray-300"
 								}`}
 								style={{ height: `${height * 100}%` }}
