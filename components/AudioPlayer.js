@@ -105,7 +105,7 @@ export default function AudioPlayer({ audioUrl, audioDuration }) {
 	const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
 
 	return (
-		<div className="my-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
+		<div className="my-6 p-4 bg-gray-50 rounded-lg border border-gray-200 overflow-hidden">
 			{/* eslint-disable-next-line jsx-a11y/media-has-caption -- Audio player for TTS, no captions needed */}
 			<audio ref={audioRef} src={audioUrl} preload="metadata" />
 
@@ -160,7 +160,7 @@ export default function AudioPlayer({ audioUrl, audioDuration }) {
 					aria-valuenow={Math.round(progress)}
 					aria-valuemin={0}
 					aria-valuemax={100}
-					className="flex-1 h-10 flex items-center gap-0.5 cursor-pointer"
+					className="flex-1 min-w-0 h-10 flex items-center gap-0.5 cursor-pointer overflow-hidden"
 					onClick={handleProgressClick}
 					onKeyDown={(e) => {
 						const audio = audioRef.current;
