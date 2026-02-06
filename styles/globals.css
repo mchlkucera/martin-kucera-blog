@@ -1,14 +1,24 @@
 html,
 body {
-   padding: 0;
-   margin: 0;
-   font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Oxygen,
-      Ubuntu, Cantarell, Fira Sans, Droid Sans, Helvetica Neue, sans-serif;
+	padding: 0;
+	margin: 0;
+	font-family:
+		-apple-system,
+		BlinkMacSystemFont,
+		Segoe UI,
+		Roboto,
+		Oxygen,
+		Ubuntu,
+		Cantarell,
+		Fira Sans,
+		Droid Sans,
+		Helvetica Neue,
+		sans-serif;
 }
 
 body {
-   background-color: white;
-   color: black;
+	background-color: white;
+	color: black;
 }
 
 /* @media (prefers-color-scheme: dark) {
@@ -19,64 +29,64 @@ body {
 } */
 
 a {
-   color: #2563eb;
-   text-decoration: none;
+	color: #2563eb;
+	text-decoration: none;
 }
 
 * {
-   box-sizing: border-box;
+	box-sizing: border-box;
 }
 
 .article h1 {
-   font-size: 2rem;
-   margin-top: 2.5rem;
-   margin-bottom: 0.5rem;
+	font-size: 2rem;
+	margin-top: 2.5rem;
+	margin-bottom: 0.5rem;
 }
 .article h2 {
-   font-size: 1.5rem;
-   margin-top: 2rem;
-   margin-bottom: 0.25rem;
+	font-size: 1.5rem;
+	margin-top: 2rem;
+	margin-bottom: 0.25rem;
 }
 .article h3 {
-   font-size: 1.25rem;
-   margin-top: 1.5rem;
-   margin-bottom: 0.25rem;
+	font-size: 1.25rem;
+	margin-top: 1.5rem;
+	margin-bottom: 0.25rem;
 }
 .article h4 {
-   font-size: 1rem;
-   margin-top: 1.25rem;
-   margin-bottom: 0.25rem;
+	font-size: 1rem;
+	margin-top: 1.25rem;
+	margin-bottom: 0.25rem;
 }
 @media (max-width: 600px) {
-   .article h1 {
-      font-size: 1.5rem;
-   }
-   .article h2 {
-      font-size: 1.25rem;
-   }
-   .article h3 {
-      font-size: 1rem;
-   }
-   .article h4 {
-      font-size: 0.875rem;
-   }
+	.article h1 {
+		font-size: 1.5rem;
+	}
+	.article h2 {
+		font-size: 1.25rem;
+	}
+	.article h3 {
+		font-size: 1rem;
+	}
+	.article h4 {
+		font-size: 0.875rem;
+	}
 }
 
 .article p {
-   margin-bottom: 1.5rem;
-   line-height: 1.8;
+	margin-bottom: 1.5rem;
+	line-height: 1.8;
 }
 
 .article ul,
 .article ol {
-   margin: 1rem 0.5rem;
-   padding-left: 1rem;
+	margin: 1rem 0.5rem;
+	padding-left: 1rem;
 }
 .article ul li {
-   list-style-type: disc;
-   line-height: 1.7rem;
+	list-style-type: disc;
+	line-height: 1.7rem;
 }
 .article ol li {
-   list-style-type: decimal;
-   line-height: 1.7rem;
+	list-style-type: decimal;
+	line-height: 1.7rem;
 }
