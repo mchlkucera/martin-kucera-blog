@@ -3,12 +3,12 @@
  * Skips code blocks, images, dividers, and other non-textual content
  */
 
+import type { NotionBlock, NotionPage, NotionRichTextItem } from "@/types";
+
 /**
  * Extract plain text from rich_text array
- * @param {Array} richText - Notion rich_text array
- * @returns {string} - Plain text content
  */
-function extractRichText(richText) {
+function extractRichText(richText: NotionRichTextItem[] | undefined): string {
 	if (!richText || !Array.isArray(richText)) {
 		return "";
 	}
@@ -17,12 +17,10 @@ function extractRichText(richText) {
 
 /**
  * Extract plain text from a single block
- * @param {Object} block - Notion block object
- * @returns {string} - Plain text content
  */
-function extractTextFromBlock(block) {
+function extractTextFromBlock(block: NotionBlock): string {
 	const { type } = block;
-	const value = block[type];
+	const value = block[type] as Record<string, unknown> | undefined;
 
 	// Skip blocks that shouldn't be read aloud
 	const skipTypes = [
@@ -58,37 +56,46 @@ function extractTextFromBlock(block) {
 		case "heading_3":
 		case "quote":
 		case "callout":
-			text = extractRichText(value?.rich_text);
+			text = extractRichText(
+				value?.rich_text as NotionRichTextItem[] | undefined,
+			);
 			break;
 
 		case "bulleted_list_item":
 		case "numbered_list_item":
 		case "to_do":
-			text = extractRichText(value?.rich_text);
+			text = extractRichText(
+				value?.rich_text as NotionRichTextItem[] | undefined,
+			);
 			break;
 
 		case "toggle":
-			text = extractRichText(value?.rich_text);
+			text = extractRichText(
+				value?.rich_text as NotionRichTextItem[] | undefined,
+			);
 			break;
 
 		case "bulleted_list":
-		case "numbered_list":
+		case "numbered_list": {
 			// These are wrapper blocks, process children
-			if (value?.children) {
-				text = value.children
+			const listChildren = value?.children as NotionBlock[] | undefined;
+			if (listChildren) {
+				text = listChildren
 					.map((child) => extractTextFromBlock(child))
 					.filter(Boolean)
 					.join(" ");
 			}
 			break;
+		}
 
-		case "table":
+		case "table": {
 			// Extract text from table cells
 			if (block.children) {
 				text = block.children
 					.map((row) => {
-						if (row.table_row?.cells) {
-							return row.table_row.cells
+						const tableRow = row.table_row;
+						if (tableRow?.cells) {
+							return tableRow.cells
 								.map((cell) => extractRichText(cell))
 								.filter(Boolean)
 								.join(", ");
@@ -99,6 +106,7 @@ function extractTextFromBlock(block) {
 					.join(". ");
 			}
 			break;
+		}
 
 		case "column_list":
 		case "column":
@@ -110,15 +118,21 @@ function extractTextFromBlock(block) {
 			}
 			break;
 
-		case "child_page":
-			text = value?.title || "";
+		case "child_page": {
+			const childPage = value as { title?: string } | undefined;
+			text = childPage?.title || "";
 			break;
+		}
 
-		default:
+		default: {
 			// Try to extract rich_text if available
-			if (value?.rich_text) {
-				text = extractRichText(value.rich_text);
+			const defaultValue = value as
+				| { rich_text?: NotionRichTextItem[] }
+				| undefined;
+			if (defaultValue?.rich_text) {
+				text = extractRichText(defaultValue.rich_text);
 			}
+		}
 	}
 
 	// Recursively process nested children
@@ -146,10 +160,8 @@ function extractTextFromBlock(block) {
 
 /**
  * Extract all plain text from an array of Notion blocks
- * @param {Array} blocks - Array of Notion block objects
- * @returns {string} - Combined plain text content
  */
-export function extractTextFromBlocks(blocks) {
+export function extractTextFromBlocks(blocks: NotionBlock[]): string {
 	if (!blocks || !Array.isArray(blocks)) {
 		return "";
 	}
@@ -178,10 +190,8 @@ export function extractTextFromBlocks(blocks) {
 
 /**
  * Extract title from a Notion page
- * @param {Object} page - Notion page object
- * @returns {string} - Page title
  */
-export function extractTitle(page) {
+export function extractTitle(page: NotionPage): string {
 	if (!page?.properties?.Name?.title) {
 		return "";
 	}

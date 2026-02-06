@@ -1,13 +1,24 @@
 {
-	"$schema": "https://biomejs.dev/schemas/2.3.13/schema.json",
+	"$schema": "https://biomejs.dev/schemas/2.3.14/schema.json",
 	"files": {
 		"includes": [
 			"**",
 			"!**/node_modules",
 			"!**/dist",
 			"!**/.next",
-			"!**/.vercel"
+			"!**/.vercel",
+			"!**/playwright-report",
+			"!**/test-results",
+			"!**/.playwright-mcp"
 		]
+	},
+	"css": {
+		"linter": {
+			"enabled": true
+		},
+		"parser": {
+			"cssModules": true
+		}
 	},
 	"linter": {
 		"enabled": true,
@@ -17,7 +28,11 @@
 				"useMediaCaption": "off"
 			},
 			"suspicious": {
-				"noArrayIndexKey": "warn"
+				"noArrayIndexKey": "warn",
+				"noUnknownAtRules": "off"
+			},
+			"performance": {
+				"noImgElement": "warn"
 			}
 		}
 	},

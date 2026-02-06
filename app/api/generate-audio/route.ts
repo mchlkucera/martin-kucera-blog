@@ -1,21 +1,16 @@
 import { put } from "@vercel/blob";
-import {
-	generateAudio,
-	isAudioGenerationEnabled,
-} from "../../lib/audio-generator";
-import { extractTextFromBlocks, extractTitle } from "../../lib/text-extractor";
+import { type NextRequest, NextResponse } from "next/server";
+import { generateAudio, isAudioGenerationEnabled } from "@/lib/audio-generator";
+import { extractTextFromBlocks, extractTitle } from "@/lib/text-extractor";
+import type { AudioGenerationResponse, PostContent, PostMeta } from "@/types";
 
 // Allow up to 5 minutes for long articles
-export const config = {
-	maxDuration: 300,
-};
+export const maxDuration = 300;
 
 /**
  * Fetch content.json from Blob storage
- * @param {string} slug - Post slug
- * @returns {Object|null} - Content object or null
  */
-async function fetchContent(slug) {
+async function fetchContent(slug: string): Promise<PostContent> {
 	const blobUrl = process.env.NEXT_PUBLIC_BLOB_URL;
 	if (!blobUrl) {
 		throw new Error("NEXT_PUBLIC_BLOB_URL not configured");
@@ -26,15 +21,13 @@ async function fetchContent(slug) {
 		throw new Error(`Failed to fetch content for ${slug}: ${response.status}`);
 	}
 
-	return response.json();
+	return response.json() as Promise<PostContent>;
 }
 
 /**
  * Fetch meta.json from Blob storage
- * @param {string} slug - Post slug
- * @returns {Object|null} - Meta object or null
  */
-async function fetchMeta(slug) {
+async function fetchMeta(slug: string): Promise<PostMeta> {
 	const blobUrl = process.env.NEXT_PUBLIC_BLOB_URL;
 	if (!blobUrl) {
 		throw new Error("NEXT_PUBLIC_BLOB_URL not configured");
@@ -52,17 +45,18 @@ async function fetchMeta(slug) {
 		throw new Error(`Failed to fetch meta for ${slug}: ${response.status}`);
 	}
 
-	return response.json();
+	return response.json() as Promise<PostMeta>;
 }
 
 /**
  * Update meta.json in Blob storage
- * @param {string} slug - Post slug
- * @param {Object} metaUpdates - Fields to update
  */
-async function updateMeta(slug, metaUpdates) {
+async function updateMeta(
+	slug: string,
+	metaUpdates: Partial<PostMeta>,
+): Promise<PostMeta> {
 	const existingMeta = await fetchMeta(slug);
-	const updatedMeta = {
+	const updatedMeta: PostMeta = {
 		...existingMeta,
 		...metaUpdates,
 		updatedAt: new Date().toISOString(),
@@ -82,31 +76,51 @@ async function updateMeta(slug, metaUpdates) {
 	return updatedMeta;
 }
 
-export default async function handler(req, res) {
-	// Only allow POST
-	if (req.method !== "POST") {
-		return res.status(405).json({ error: "Method not allowed" });
-	}
-
+export async function POST(
+	request: NextRequest,
+): Promise<NextResponse<AudioGenerationResponse>> {
 	// Verify authorization
-	const authHeader = req.headers.authorization;
+	const authHeader = request.headers.get("authorization");
 	const expectedToken = `Bearer ${process.env.CRON_SECRET}`;
 
 	if (!process.env.CRON_SECRET || authHeader !== expectedToken) {
-		return res.status(401).json({ error: "Unauthorized" });
+		return NextResponse.json(
+			{
+				success: false,
+				slug: "",
+				audioStatus: "failed",
+				error: "Unauthorized",
+			},
+			{ status: 401 },
+		);
 	}
 
 	// Check if audio generation is enabled
 	if (!isAudioGenerationEnabled()) {
-		return res.status(400).json({
-			error: "Audio generation not enabled (ELEVENLABS_API_KEY missing)",
-		});
+		return NextResponse.json(
+			{
+				success: false,
+				slug: "",
+				audioStatus: "failed",
+				error: "Audio generation not enabled (ELEVENLABS_API_KEY missing)",
+			},
+			{ status: 400 },
+		);
 	}
 
-	const { slug } = req.body;
+	const body = (await request.json()) as { slug?: string };
+	const { slug } = body;
 
 	if (!slug) {
-		return res.status(400).json({ error: "Missing slug in request body" });
+		return NextResponse.json(
+			{
+				success: false,
+				slug: "",
+				audioStatus: "failed",
+				error: "Missing slug in request body",
+			},
+			{ status: 400 },
+		);
 	}
 
 	console.log(`Starting audio generation for ${slug}...`);
@@ -127,7 +141,7 @@ export default async function handler(req, res) {
 				audioUrl: null,
 				audioDuration: null,
 			});
-			return res.status(200).json({
+			return NextResponse.json({
 				success: true,
 				slug,
 				audioStatus: "none",
@@ -163,7 +177,7 @@ export default async function handler(req, res) {
 
 		console.log(`Audio generation complete for ${slug}`);
 
-		return res.status(200).json({
+		return NextResponse.json({
 			success: true,
 			slug,
 			audioStatus: "ready",
@@ -177,17 +191,20 @@ export default async function handler(req, res) {
 		try {
 			await updateMeta(slug, {
 				audioStatus: "failed",
-				audioError: error.message,
+				audioError: (error as Error).message,
 			});
 		} catch (metaError) {
 			console.error(`Failed to update meta for ${slug}:`, metaError);
 		}
 
-		return res.status(500).json({
-			success: false,
-			slug,
-			audioStatus: "failed",
-			error: error.message,
-		});
+		return NextResponse.json(
+			{
+				success: false,
+				slug,
+				audioStatus: "failed",
+				error: (error as Error).message,
+			},
+			{ status: 500 },
+		);
 	}
 }

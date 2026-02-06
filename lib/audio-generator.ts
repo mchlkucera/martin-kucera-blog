@@ -1,3 +1,5 @@
+import type { AudioGenerationResult } from "@/types";
+
 const ELEVENLABS_API_URL = "https://api.elevenlabs.io/v1/text-to-speech";
 // Grandpa Spuds Oxley - wise and approachable voice
 const DEFAULT_VOICE_ID = "NOpBlnGInO9m6vDvFkFC";
@@ -8,24 +10,23 @@ const INITIAL_RETRY_DELAY = 1000;
 
 /**
  * Sleep for a given duration
- * @param {number} ms - Milliseconds to sleep
  */
-function sleep(ms) {
+function sleep(ms: number): Promise<void> {
 	return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 /**
  * Split text into chunks at sentence boundaries
- * @param {string} text - Text to split
- * @param {number} maxChars - Maximum characters per chunk
- * @returns {string[]} - Array of text chunks
  */
-export function chunkTextAtSentences(text, maxChars = MAX_CHARS_PER_REQUEST) {
+export function chunkTextAtSentences(
+	text: string,
+	maxChars: number = MAX_CHARS_PER_REQUEST,
+): string[] {
 	if (!text || text.length <= maxChars) {
 		return text ? [text] : [];
 	}
 
-	const chunks = [];
+	const chunks: string[] = [];
 	let remainingText = text;
 
 	while (remainingText.length > 0) {
@@ -79,18 +80,18 @@ export function chunkTextAtSentences(text, maxChars = MAX_CHARS_PER_REQUEST) {
 
 /**
  * Generate audio for a single text chunk with retry logic using ElevenLabs
- * @param {string} text - Text to convert to speech
- * @param {number} attempt - Current attempt number
- * @returns {Buffer} - Audio buffer
  */
-async function generateAudioChunk(text, attempt = 1) {
+async function generateAudioChunk(
+	text: string,
+	attempt: number = 1,
+): Promise<Buffer> {
 	try {
 		const voiceId = process.env.ELEVENLABS_VOICE_ID || DEFAULT_VOICE_ID;
 
 		const response = await fetch(`${ELEVENLABS_API_URL}/${voiceId}`, {
 			method: "POST",
 			headers: {
-				"xi-api-key": process.env.ELEVENLABS_API_KEY,
+				"xi-api-key": process.env.ELEVENLABS_API_KEY || "",
 				"Content-Type": "application/json",
 			},
 			body: JSON.stringify({
@@ -117,7 +118,7 @@ async function generateAudioChunk(text, attempt = 1) {
 	} catch (error) {
 		if (attempt >= MAX_RETRIES) {
 			throw new Error(
-				`Failed to generate audio after ${MAX_RETRIES} attempts: ${error.message}`,
+				`Failed to generate audio after ${MAX_RETRIES} attempts: ${(error as Error).message}`,
 			);
 		}
 
@@ -134,10 +135,10 @@ async function generateAudioChunk(text, attempt = 1) {
 
 /**
  * Generate audio from text using ElevenLabs TTS
- * @param {string} text - Full text to convert to speech
- * @returns {Promise<{buffer: Buffer, duration: number}>} - Audio buffer and estimated duration
  */
-export async function generateAudio(text) {
+export async function generateAudio(
+	text: string,
+): Promise<AudioGenerationResult> {
 	if (!text || text.trim().length === 0) {
 		throw new Error("No text provided for audio generation");
 	}
@@ -147,7 +148,7 @@ export async function generateAudio(text) {
 		`Generating audio for ${chunks.length} chunk(s) using ElevenLabs...`,
 	);
 
-	const audioBuffers = [];
+	const audioBuffers: Buffer[] = [];
 
 	for (let i = 0; i < chunks.length; i++) {
 		console.log(
@@ -177,8 +178,7 @@ export async function generateAudio(text) {
 
 /**
  * Check if ElevenLabs API key is configured
- * @returns {boolean}
  */
-export function isAudioGenerationEnabled() {
+export function isAudioGenerationEnabled(): boolean {
 	return !!process.env.ELEVENLABS_API_KEY;
 }

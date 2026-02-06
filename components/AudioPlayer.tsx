@@ -1,11 +1,12 @@
+"use client";
+
 import { useEffect, useRef, useState } from "react";
+import type { AudioPlayerProps } from "@/types";
 
 /**
  * Format seconds to MM:SS
- * @param {number} seconds
- * @returns {string}
  */
-function formatTime(seconds) {
+function formatTime(seconds: number | undefined): string {
 	if (!seconds || Number.isNaN(seconds)) return "0:00";
 	const mins = Math.floor(seconds / 60);
 	const secs = Math.floor(seconds % 60);
@@ -14,12 +15,9 @@ function formatTime(seconds) {
 
 /**
  * Generate pseudo-random heights for waveform bars based on seed
- * @param {number} count - Number of bars
- * @param {number} seed - Seed for randomization
- * @returns {number[]} - Array of heights (0-1)
  */
-function generateWaveformHeights(count, seed = 42) {
-	const heights = [];
+function generateWaveformHeights(count: number, seed: number = 42): number[] {
+	const heights: number[] = [];
 	let value = seed;
 	for (let i = 0; i < count; i++) {
 		// Simple pseudo-random number generator
@@ -31,8 +29,11 @@ function generateWaveformHeights(count, seed = 42) {
 	return heights;
 }
 
-export default function AudioPlayer({ audioUrl, audioDuration }) {
-	const audioRef = useRef(null);
+export default function AudioPlayer({
+	audioUrl,
+	audioDuration,
+}: AudioPlayerProps) {
+	const audioRef = useRef<HTMLAudioElement>(null);
 	const [isPlaying, setIsPlaying] = useState(false);
 	const [currentTime, setCurrentTime] = useState(0);
 	const [duration, setDuration] = useState(audioDuration || 0);
@@ -89,7 +90,7 @@ export default function AudioPlayer({ audioUrl, audioDuration }) {
 		}
 	};
 
-	const handleProgressClick = (e) => {
+	const handleProgressClick = (e: React.MouseEvent<HTMLDivElement>) => {
 		const audio = audioRef.current;
 		if (!audio || !duration) return;
 
@@ -102,15 +103,24 @@ export default function AudioPlayer({ audioUrl, audioDuration }) {
 		setCurrentTime(newTime);
 	};
 
+	const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+		const audio = audioRef.current;
+		if (!audio || !duration) return;
+		if (e.key === "ArrowRight") {
+			audio.currentTime = Math.min(audio.currentTime + 5, duration);
+		} else if (e.key === "ArrowLeft") {
+			audio.currentTime = Math.max(audio.currentTime - 5, 0);
+		}
+	};
+
 	const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
 
 	return (
 		<div className="my-6 p-4 bg-gray-50 rounded-lg border border-gray-200 overflow-hidden">
-			{/* eslint-disable-next-line jsx-a11y/media-has-caption -- Audio player for TTS, no captions needed */}
 			<audio ref={audioRef} src={audioUrl} preload="metadata" />
 
 			<div className="text-sm text-gray-500 mb-3">
-				Přečti si článek v podání Luďka Hlasomíra
+				Precti si clanek v podani Ludka Hlasomira
 			</div>
 
 			<div className="flex items-center gap-3">
@@ -162,15 +172,7 @@ export default function AudioPlayer({ audioUrl, audioDuration }) {
 					aria-valuemax={100}
 					className="flex-1 min-w-0 h-10 flex items-center gap-0.5 cursor-pointer overflow-hidden"
 					onClick={handleProgressClick}
-					onKeyDown={(e) => {
-						const audio = audioRef.current;
-						if (!audio || !duration) return;
-						if (e.key === "ArrowRight") {
-							audio.currentTime = Math.min(audio.currentTime + 5, duration);
-						} else if (e.key === "ArrowLeft") {
-							audio.currentTime = Math.max(audio.currentTime - 5, 0);
-						}
-					}}
+					onKeyDown={handleKeyDown}
 				>
 					{waveformHeights.map((height, index) => {
 						const barProgress = ((index + 1) / barCount) * 100;

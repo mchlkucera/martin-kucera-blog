@@ -1,34 +1,38 @@
 import crypto from "node:crypto";
 import { put } from "@vercel/blob";
-import { getBlocks, getDatabase, getPage } from "../../lib/notion";
-import { getPageSlug } from "../[id]";
+import { type NextRequest, NextResponse } from "next/server";
+import { getBlocks, getDatabase, getPage } from "@/lib/notion";
+import { getPageSlug } from "@/lib/utils";
+import type {
+	NotionPage,
+	PostContent,
+	PostMeta,
+	SyncResponse,
+	SyncResult,
+} from "@/types";
 
 const databaseId = process.env.NOTION_DATABASE_ID;
 
 /**
  * Generate a hash of content for change detection
- * @param {Object} content - Content to hash
- * @returns {string} - MD5 hash
  */
-function generateContentHash(content) {
+function generateContentHash(content: object): string {
 	return crypto.createHash("md5").update(JSON.stringify(content)).digest("hex");
 }
 
 /**
  * Try to fetch existing meta.json from Blob storage
- * @param {string} slug - Post slug
- * @returns {Object|null} - Meta object or null if not found
  */
-async function fetchExistingMeta(slug) {
+async function fetchExistingMeta(slug: string): Promise<PostMeta | null> {
 	try {
 		const blobUrl = process.env.NEXT_PUBLIC_BLOB_URL;
 		if (!blobUrl) return null;
 
 		const response = await fetch(`${blobUrl}/blog/posts/${slug}/meta.json`);
 		if (response.ok) {
-			return await response.json();
+			return (await response.json()) as PostMeta;
 		}
-	} catch (_error) {
+	} catch {
 		console.log(`No existing meta for ${slug}`);
 	}
 	return null;
@@ -36,10 +40,11 @@ async function fetchExistingMeta(slug) {
 
 /**
  * Trigger audio generation for a post
- * @param {string} slug - Post slug
- * @param {string} baseUrl - Base URL for API calls
  */
-async function triggerAudioGeneration(slug, baseUrl) {
+async function triggerAudioGeneration(
+	slug: string,
+	baseUrl: string,
+): Promise<void> {
 	try {
 		const response = await fetch(`${baseUrl}/api/generate-audio`, {
 			method: "POST",
@@ -58,18 +63,23 @@ async function triggerAudioGeneration(slug, baseUrl) {
 	} catch (error) {
 		console.error(
 			`Error triggering audio generation for ${slug}:`,
-			error.message,
+			(error as Error).message,
 		);
 	}
 }
 
-export default async function handler(req, res) {
+export async function POST(
+	request: NextRequest,
+): Promise<NextResponse<SyncResponse>> {
 	// Verify authorization
-	const authHeader = req.headers.authorization;
+	const authHeader = request.headers.get("authorization");
 	const expectedToken = `Bearer ${process.env.CRON_SECRET}`;
 
 	if (!process.env.CRON_SECRET || authHeader !== expectedToken) {
-		return res.status(401).json({ error: "Unauthorized" });
+		return NextResponse.json(
+			{ success: false, error: "Unauthorized" },
+			{ status: 401 },
+		);
 	}
 
 	try {
@@ -79,8 +89,15 @@ export default async function handler(req, res) {
 		const posts = await getDatabase(databaseId);
 		console.log(`Found ${posts.length} posts in Notion`);
 
-		const syncResults = [];
-		const indexPosts = [];
+		const syncResults: SyncResult[] = [];
+		const indexPosts: Array<{
+			id: string;
+			slug: string;
+			title: string;
+			lastEditedTime: string;
+			createdTime: string;
+			properties: NotionPage["properties"];
+		}> = [];
 
 		// Determine base URL for triggering audio generation
 		const baseUrl = process.env.VERCEL_URL
@@ -99,7 +116,7 @@ export default async function handler(req, res) {
 				]);
 
 				// Create content object
-				const content = {
+				const content: PostContent = {
 					page,
 					blocks,
 					fetchedAt: new Date().toISOString(),
@@ -129,7 +146,7 @@ export default async function handler(req, res) {
 					);
 
 					// Create/update meta.json
-					const meta = {
+					const meta: PostMeta = {
 						slug,
 						pageId,
 						contentHash,
@@ -141,8 +158,10 @@ export default async function handler(req, res) {
 							existingMeta?.audioStatus === "ready"
 								? "pending"
 								: existingMeta?.audioStatus || "pending",
-						audioUrl: hasChanged ? null : existingMeta?.audioUrl,
-						audioDuration: hasChanged ? null : existingMeta?.audioDuration,
+						audioUrl: hasChanged ? null : (existingMeta?.audioUrl ?? null),
+						audioDuration: hasChanged
+							? null
+							: (existingMeta?.audioDuration ?? null),
 					};
 
 					await put(
@@ -175,8 +194,12 @@ export default async function handler(req, res) {
 					properties: page.properties,
 				});
 			} catch (error) {
-				console.error(`Error processing ${slug}:`, error.message);
-				syncResults.push({ slug, status: "error", error: error.message });
+				console.error(`Error processing ${slug}:`, (error as Error).message);
+				syncResults.push({
+					slug,
+					status: "error",
+					error: (error as Error).message,
+				});
 			}
 		}
 
@@ -196,7 +219,7 @@ export default async function handler(req, res) {
 
 		console.log("Content sync completed");
 
-		return res.status(200).json({
+		return NextResponse.json({
 			success: true,
 			results: syncResults,
 			totalPosts: posts.length,
@@ -204,9 +227,19 @@ export default async function handler(req, res) {
 		});
 	} catch (error) {
 		console.error("Sync error:", error);
-		return res.status(500).json({
-			success: false,
-			error: error.message,
-		});
+		return NextResponse.json(
+			{
+				success: false,
+				error: (error as Error).message,
+			},
+			{ status: 500 },
+		);
 	}
+}
+
+// Also support GET for easier testing
+export async function GET(
+	request: NextRequest,
+): Promise<NextResponse<SyncResponse>> {
+	return POST(request);
 }
