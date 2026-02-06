@@ -207,7 +207,7 @@ const renderBlock = (block) => {
 	}
 };
 
-export default function Post({ page, blocks, audioUrl, audioDuration }) {
+export default function Post({ page, blocks, audioUrl, audioDuration, previousArticle, nextArticle }) {
 	const year = new Date().getFullYear();
 
 	if (!page || !blocks) {
@@ -261,6 +261,35 @@ export default function Post({ page, blocks, audioUrl, audioDuration }) {
 						))}
 					</section>
 				</article>
+
+				{/* Article Navigation */}
+				{(previousArticle || nextArticle) && (
+					<nav className="flex justify-between items-stretch gap-4 my-8 pt-8 border-t border-gray-200">
+						{previousArticle ? (
+							<Link
+								href={`/${previousArticle.slug}`}
+								className="flex-1 p-4 rounded border border-gray-200 hover:bg-gray-100 transition text-left"
+							>
+								<span className="text-xs text-gray-400 block mb-1">Předchozí</span>
+								<span className="text-gray-700">{previousArticle.title}</span>
+							</Link>
+						) : (
+							<div className="flex-1" />
+						)}
+						{nextArticle ? (
+							<Link
+								href={`/${nextArticle.slug}`}
+								className="flex-1 p-4 rounded border border-gray-200 hover:bg-gray-100 transition text-right"
+							>
+								<span className="text-xs text-gray-400 block mb-1">Další</span>
+								<span className="text-gray-700">{nextArticle.title}</span>
+							</Link>
+						) : (
+							<div className="flex-1" />
+						)}
+					</nav>
+				)}
+
 				<div>
 					<footer className="my-8 text-gray-400 text-sm">&copy; {year}</footer>
 				</div>
@@ -298,6 +327,32 @@ export const getStaticProps = async (context) => {
 		let blocks = null;
 		let audioUrl = null;
 		let audioDuration = null;
+		let previousArticle = null;
+		let nextArticle = null;
+
+		// Get database for navigation (needed for both blob and Notion paths)
+		const database = await getDatabase(databaseId);
+
+		// Find current article index
+		const currentIndex = database.findIndex((p) => {
+			return p.id === id || getPageSlug(p) === id;
+		});
+
+		// Set previous and next articles
+		if (currentIndex > 0) {
+			const prev = database[currentIndex - 1];
+			previousArticle = {
+				slug: getPageSlug(prev),
+				title: prev.properties.Name.title[0].plain_text,
+			};
+		}
+		if (currentIndex !== -1 && currentIndex < database.length - 1) {
+			const next = database[currentIndex + 1];
+			nextArticle = {
+				slug: getPageSlug(next),
+				title: next.properties.Name.title[0].plain_text,
+			};
+		}
 
 		// Try fetching from Blob storage first
 		if (BLOB_URL) {
@@ -327,8 +382,6 @@ export const getStaticProps = async (context) => {
 
 		// Fallback to direct Notion API call
 		if (!page || !blocks) {
-			const database = await getDatabase(databaseId);
-
 			const foundPostSlug = database.find((page) => {
 				return getPageSlug(page) === id;
 			});
@@ -345,6 +398,8 @@ export const getStaticProps = async (context) => {
 				blocks,
 				audioUrl,
 				audioDuration,
+				previousArticle,
+				nextArticle,
 			},
 			revalidate: 60,
 		};
@@ -355,6 +410,8 @@ export const getStaticProps = async (context) => {
 				blocks: null,
 				audioUrl: null,
 				audioDuration: null,
+				previousArticle: null,
+				nextArticle: null,
 			},
 			revalidate: 60,
 		};
