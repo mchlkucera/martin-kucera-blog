@@ -4,8 +4,8 @@ import { generateAudio, isAudioGenerationEnabled } from "@/lib/audio-generator";
 import { extractTextFromBlocks, extractTitle } from "@/lib/text-extractor";
 import type { AudioGenerationResponse, PostContent, PostMeta } from "@/types";
 
-// Allow up to 5 minutes for long articles
-export const maxDuration = 300;
+// Max duration for Hobby plan is 60 seconds
+export const maxDuration = 60;
 
 /**
  * Fetch content.json from Blob storage
