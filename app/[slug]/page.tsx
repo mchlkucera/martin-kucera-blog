@@ -369,7 +369,8 @@ async function getPostData(slug: string): Promise<PostData> {
 
 				if (metaRes.ok) {
 					const meta: PostMeta = await metaRes.json();
-					if (meta.audioStatus === "ready" && meta.audioUrl) {
+					// Show audio if URL exists, regardless of status (e.g., "failed" regeneration but old audio still works)
+				if (meta.audioUrl) {
 						audioUrl = meta.audioUrl;
 						audioDuration = meta.audioDuration;
 					}

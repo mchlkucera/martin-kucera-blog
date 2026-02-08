@@ -120,7 +120,7 @@ export default function AudioPlayer({
 			<audio ref={audioRef} src={audioUrl} preload="metadata" />
 
 			<div className="text-sm text-gray-500 mb-3">
-				Precti si clanek v podani Ludka Hlasomira
+				Přečti si článek v podání Luďka Hlasomíra
 			</div>
 
 			<div className="flex items-center gap-3">
