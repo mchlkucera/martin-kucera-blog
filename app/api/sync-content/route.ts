@@ -137,14 +137,10 @@ async function processPost(
 				lastEditedTime: page.last_edited_time,
 				createdTime: page.created_time,
 				syncedAt: new Date().toISOString(),
-				audioStatus:
-					existingMeta?.audioStatus === "ready"
-						? "pending"
-						: existingMeta?.audioStatus || "pending",
-				audioUrl: hasChanged ? null : (existingMeta?.audioUrl ?? null),
-				audioDuration: hasChanged
-					? null
-					: (existingMeta?.audioDuration ?? null),
+				// Keep existing audio status and files, never regenerate
+			audioStatus: existingMeta?.audioStatus || "pending",
+			audioUrl: existingMeta?.audioUrl ?? null,
+			audioDuration: existingMeta?.audioDuration ?? null,
 			};
 
 			await put(
@@ -158,8 +154,10 @@ async function processPost(
 				},
 			);
 
-			// Trigger audio generation asynchronously (don't await)
-			triggerAudioGeneration(slug, baseUrl);
+			// Only trigger audio generation for new articles (no existing meta)
+			if (!existingMeta) {
+				triggerAudioGeneration(slug, baseUrl);
+			}
 
 			return {
 				syncResult: { slug, status: "updated" },
