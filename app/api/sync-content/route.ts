@@ -13,6 +13,9 @@ import type {
 
 const databaseId = process.env.NOTION_DATABASE_ID;
 
+// Set max duration to 60 seconds (Vercel Hobby plan limit)
+export const maxDuration = 60;
+
 /**
  * Generate a hash of content for change detection
  */
