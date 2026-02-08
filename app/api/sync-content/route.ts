@@ -68,6 +68,184 @@ async function triggerAudioGeneration(
 	}
 }
 
+/**
+ * Process a single post and return the results
+ */
+async function processPost(
+	post: NotionPage,
+	baseUrl: string,
+): Promise<{
+	syncResult: SyncResult;
+	indexPost: {
+		id: string;
+		slug: string;
+		title: string;
+		lastEditedTime: string;
+		createdTime: string;
+		properties: NotionPage["properties"];
+	} | null;
+}> {
+	const slug = getPageSlug(post);
+	const pageId = post.id;
+
+	try {
+		// Fetch full page and blocks
+		const [page, blocks] = await Promise.all([
+			getPage(pageId),
+			getBlocks(pageId),
+		]);
+
+		// Create content object
+		const content: PostContent = {
+			page,
+			blocks,
+			fetchedAt: new Date().toISOString(),
+		};
+
+		// Generate hash for change detection
+		const contentHash = generateContentHash({ page, blocks });
+
+		// Check existing meta
+		const existingMeta = await fetchExistingMeta(slug);
+		const hasChanged =
+			!existingMeta || existingMeta.contentHash !== contentHash;
+
+		if (hasChanged) {
+			console.log(`Content changed for ${slug}, updating...`);
+
+			// Store content.json
+			await put(
+				`blog/posts/${slug}/content.json`,
+				JSON.stringify(content, null, 2),
+				{
+					access: "public",
+					contentType: "application/json",
+					addRandomSuffix: false,
+					allowOverwrite: true,
+				},
+			);
+
+			// Create/update meta.json
+			const meta: PostMeta = {
+				slug,
+				pageId,
+				contentHash,
+				title: page.properties.Name.title[0]?.plain_text || "",
+				lastEditedTime: page.last_edited_time,
+				createdTime: page.created_time,
+				syncedAt: new Date().toISOString(),
+				audioStatus:
+					existingMeta?.audioStatus === "ready"
+						? "pending"
+						: existingMeta?.audioStatus || "pending",
+				audioUrl: hasChanged ? null : (existingMeta?.audioUrl ?? null),
+				audioDuration: hasChanged
+					? null
+					: (existingMeta?.audioDuration ?? null),
+			};
+
+			await put(
+				`blog/posts/${slug}/meta.json`,
+				JSON.stringify(meta, null, 2),
+				{
+					access: "public",
+					contentType: "application/json",
+					addRandomSuffix: false,
+					allowOverwrite: true,
+				},
+			);
+
+			// Trigger audio generation asynchronously (don't await)
+			triggerAudioGeneration(slug, baseUrl);
+
+			return {
+				syncResult: { slug, status: "updated" },
+				indexPost: {
+					id: pageId,
+					slug,
+					title: page.properties.Name.title[0]?.plain_text || "",
+					lastEditedTime: page.last_edited_time,
+					createdTime: page.created_time,
+					properties: page.properties,
+				},
+			};
+		}
+
+		console.log(`No changes for ${slug}`);
+		return {
+			syncResult: { slug, status: "unchanged" },
+			indexPost: {
+				id: pageId,
+				slug,
+				title: page.properties.Name.title[0]?.plain_text || "",
+				lastEditedTime: page.last_edited_time,
+				createdTime: page.created_time,
+				properties: page.properties,
+			},
+		};
+	} catch (error) {
+		console.error(`Error processing ${slug}:`, (error as Error).message);
+		return {
+			syncResult: {
+				slug,
+				status: "error",
+				error: (error as Error).message,
+			},
+			indexPost: null,
+		};
+	}
+}
+
+/**
+ * Process posts in parallel batches
+ */
+async function processPosts(
+	posts: NotionPage[],
+	baseUrl: string,
+	batchSize = 5,
+): Promise<{
+	syncResults: SyncResult[];
+	indexPosts: Array<{
+		id: string;
+		slug: string;
+		title: string;
+		lastEditedTime: string;
+		createdTime: string;
+		properties: NotionPage["properties"];
+	}>;
+}> {
+	const syncResults: SyncResult[] = [];
+	const indexPosts: Array<{
+		id: string;
+		slug: string;
+		title: string;
+		lastEditedTime: string;
+		createdTime: string;
+		properties: NotionPage["properties"];
+	}> = [];
+
+	// Process posts in batches
+	for (let i = 0; i < posts.length; i += batchSize) {
+		const batch = posts.slice(i, i + batchSize);
+		console.log(
+			`Processing batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(posts.length / batchSize)} (${batch.length} posts)`,
+		);
+
+		const results = await Promise.all(
+			batch.map((post) => processPost(post, baseUrl)),
+		);
+
+		for (const result of results) {
+			syncResults.push(result.syncResult);
+			if (result.indexPost) {
+				indexPosts.push(result.indexPost);
+			}
+		}
+	}
+
+	return { syncResults, indexPosts };
+}
+
 export async function POST(
 	request: NextRequest,
 ): Promise<NextResponse<SyncResponse>> {
@@ -89,119 +267,13 @@ export async function POST(
 		const posts = await getDatabase(databaseId);
 		console.log(`Found ${posts.length} posts in Notion`);
 
-		const syncResults: SyncResult[] = [];
-		const indexPosts: Array<{
-			id: string;
-			slug: string;
-			title: string;
-			lastEditedTime: string;
-			createdTime: string;
-			properties: NotionPage["properties"];
-		}> = [];
-
 		// Determine base URL for triggering audio generation
 		const baseUrl = process.env.VERCEL_URL
 			? `https://${process.env.VERCEL_URL}`
 			: process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
 
-		for (const post of posts) {
-			const slug = getPageSlug(post);
-			const pageId = post.id;
-
-			try {
-				// Fetch full page and blocks
-				const [page, blocks] = await Promise.all([
-					getPage(pageId),
-					getBlocks(pageId),
-				]);
-
-				// Create content object
-				const content: PostContent = {
-					page,
-					blocks,
-					fetchedAt: new Date().toISOString(),
-				};
-
-				// Generate hash for change detection
-				const contentHash = generateContentHash({ page, blocks });
-
-				// Check existing meta
-				const existingMeta = await fetchExistingMeta(slug);
-				const hasChanged =
-					!existingMeta || existingMeta.contentHash !== contentHash;
-
-				if (hasChanged) {
-					console.log(`Content changed for ${slug}, updating...`);
-
-					// Store content.json
-					await put(
-						`blog/posts/${slug}/content.json`,
-						JSON.stringify(content, null, 2),
-						{
-							access: "public",
-							contentType: "application/json",
-							addRandomSuffix: false,
-							allowOverwrite: true,
-						},
-					);
-
-					// Create/update meta.json
-					const meta: PostMeta = {
-						slug,
-						pageId,
-						contentHash,
-						title: page.properties.Name.title[0]?.plain_text || "",
-						lastEditedTime: page.last_edited_time,
-						createdTime: page.created_time,
-						syncedAt: new Date().toISOString(),
-						audioStatus:
-							existingMeta?.audioStatus === "ready"
-								? "pending"
-								: existingMeta?.audioStatus || "pending",
-						audioUrl: hasChanged ? null : (existingMeta?.audioUrl ?? null),
-						audioDuration: hasChanged
-							? null
-							: (existingMeta?.audioDuration ?? null),
-					};
-
-					await put(
-						`blog/posts/${slug}/meta.json`,
-						JSON.stringify(meta, null, 2),
-						{
-							access: "public",
-							contentType: "application/json",
-							addRandomSuffix: false,
-							allowOverwrite: true,
-						},
-					);
-
-					// Trigger audio generation asynchronously (don't await)
-					triggerAudioGeneration(slug, baseUrl);
-
-					syncResults.push({ slug, status: "updated" });
-				} else {
-					console.log(`No changes for ${slug}`);
-					syncResults.push({ slug, status: "unchanged" });
-				}
-
-				// Add to index
-				indexPosts.push({
-					id: pageId,
-					slug,
-					title: page.properties.Name.title[0]?.plain_text || "",
-					lastEditedTime: page.last_edited_time,
-					createdTime: page.created_time,
-					properties: page.properties,
-				});
-			} catch (error) {
-				console.error(`Error processing ${slug}:`, (error as Error).message);
-				syncResults.push({
-					slug,
-					status: "error",
-					error: (error as Error).message,
-				});
-			}
-		}
+		// Process all posts in parallel batches
+		const { syncResults, indexPosts } = await processPosts(posts, baseUrl);
 
 		// Update index.json
 		const index = {
