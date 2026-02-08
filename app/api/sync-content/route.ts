@@ -138,21 +138,17 @@ async function processPost(
 				createdTime: page.created_time,
 				syncedAt: new Date().toISOString(),
 				// Keep existing audio status and files, never regenerate
-			audioStatus: existingMeta?.audioStatus || "pending",
-			audioUrl: existingMeta?.audioUrl ?? null,
-			audioDuration: existingMeta?.audioDuration ?? null,
+				audioStatus: existingMeta?.audioStatus || "pending",
+				audioUrl: existingMeta?.audioUrl ?? null,
+				audioDuration: existingMeta?.audioDuration ?? null,
 			};
 
-			await put(
-				`blog/posts/${slug}/meta.json`,
-				JSON.stringify(meta, null, 2),
-				{
-					access: "public",
-					contentType: "application/json",
-					addRandomSuffix: false,
-					allowOverwrite: true,
-				},
-			);
+			await put(`blog/posts/${slug}/meta.json`, JSON.stringify(meta, null, 2), {
+				access: "public",
+				contentType: "application/json",
+				addRandomSuffix: false,
+				allowOverwrite: true,
+			});
 
 			// Only trigger audio generation for new articles (no existing meta)
 			if (!existingMeta) {
