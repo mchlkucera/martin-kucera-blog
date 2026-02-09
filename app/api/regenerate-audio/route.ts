@@ -1,4 +1,4 @@
-import { type NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
 // Set max duration to 60 seconds (Vercel Hobby plan limit)
 export const maxDuration = 60;

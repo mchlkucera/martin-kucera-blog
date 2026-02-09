@@ -42,6 +42,29 @@ async function fetchExistingMeta(slug: string): Promise<PostMeta | null> {
 }
 
 /**
+ * Check if audio.mp3 file exists in Blob storage (to recover orphaned audio files)
+ */
+async function checkExistingAudio(
+	slug: string,
+): Promise<{ audioUrl: string | null; audioDuration: number | null }> {
+	try {
+		const blobUrl = process.env.NEXT_PUBLIC_BLOB_URL;
+		if (!blobUrl) return { audioUrl: null, audioDuration: null };
+
+		const audioUrl = `${blobUrl}/blog/posts/${slug}/audio.mp3`;
+		const response = await fetch(audioUrl, { method: "HEAD" });
+
+		if (response.ok) {
+			console.log(`Found orphaned audio file for ${slug}, preserving URL`);
+			return { audioUrl, audioDuration: null };
+		}
+	} catch {
+		// Audio file doesn't exist
+	}
+	return { audioUrl: null, audioDuration: null };
+}
+
+/**
  * Trigger audio generation for a post
  */
 async function triggerAudioGeneration(
@@ -128,6 +151,15 @@ async function processPost(
 				},
 			);
 
+			// If no existing meta, check for orphaned audio files
+			let audioUrl = existingMeta?.audioUrl ?? null;
+			let audioDuration = existingMeta?.audioDuration ?? null;
+			if (!existingMeta) {
+				const orphanedAudio = await checkExistingAudio(slug);
+				audioUrl = orphanedAudio.audioUrl;
+				audioDuration = orphanedAudio.audioDuration;
+			}
+
 			// Create/update meta.json
 			const meta: PostMeta = {
 				slug,
@@ -139,8 +171,8 @@ async function processPost(
 				syncedAt: new Date().toISOString(),
 				// Keep existing audio status and files, never regenerate
 				audioStatus: existingMeta?.audioStatus || "pending",
-				audioUrl: existingMeta?.audioUrl ?? null,
-				audioDuration: existingMeta?.audioDuration ?? null,
+				audioUrl,
+				audioDuration,
 			};
 
 			await put(`blog/posts/${slug}/meta.json`, JSON.stringify(meta, null, 2), {
