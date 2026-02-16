@@ -1,6 +1,6 @@
-import { put } from "@vercel/blob";
 import { type NextRequest, NextResponse } from "next/server";
 import { generateAudio, isAudioGenerationEnabled } from "@/lib/audio-generator";
+import { putObject, R2_PUBLIC_URL } from "@/lib/r2";
 import { extractTextFromBlocks, extractTitle } from "@/lib/text-extractor";
 import type { AudioGenerationResponse, PostContent, PostMeta } from "@/types";
 
@@ -8,15 +8,16 @@ import type { AudioGenerationResponse, PostContent, PostMeta } from "@/types";
 export const maxDuration = 60;
 
 /**
- * Fetch content.json from Blob storage
+ * Fetch content.json from R2 storage
  */
 async function fetchContent(slug: string): Promise<PostContent> {
-	const blobUrl = process.env.NEXT_PUBLIC_BLOB_URL;
-	if (!blobUrl) {
-		throw new Error("NEXT_PUBLIC_BLOB_URL not configured");
+	if (!R2_PUBLIC_URL) {
+		throw new Error("NEXT_PUBLIC_R2_PUBLIC_URL not configured");
 	}
 
-	const response = await fetch(`${blobUrl}/blog/posts/${slug}/content.json`);
+	const response = await fetch(
+		`${R2_PUBLIC_URL}/blog/posts/${slug}/content.json`,
+	);
 	if (!response.ok) {
 		throw new Error(`Failed to fetch content for ${slug}: ${response.status}`);
 	}
@@ -25,18 +26,17 @@ async function fetchContent(slug: string): Promise<PostContent> {
 }
 
 /**
- * Fetch meta.json from Blob storage
+ * Fetch meta.json from R2 storage
  */
 async function fetchMeta(slug: string): Promise<PostMeta> {
-	const blobUrl = process.env.NEXT_PUBLIC_BLOB_URL;
-	if (!blobUrl) {
-		throw new Error("NEXT_PUBLIC_BLOB_URL not configured");
+	if (!R2_PUBLIC_URL) {
+		throw new Error("NEXT_PUBLIC_R2_PUBLIC_URL not configured");
 	}
 
 	// Add cache-busting parameter to avoid CDN cache
 	const cacheBuster = Date.now();
 	const response = await fetch(
-		`${blobUrl}/blog/posts/${slug}/meta.json?t=${cacheBuster}`,
+		`${R2_PUBLIC_URL}/blog/posts/${slug}/meta.json?t=${cacheBuster}`,
 		{
 			cache: "no-store",
 		},
@@ -49,7 +49,7 @@ async function fetchMeta(slug: string): Promise<PostMeta> {
 }
 
 /**
- * Update meta.json in Blob storage
+ * Update meta.json in R2 storage
  */
 async function updateMeta(
 	slug: string,
@@ -62,15 +62,10 @@ async function updateMeta(
 		updatedAt: new Date().toISOString(),
 	};
 
-	await put(
+	await putObject(
 		`blog/posts/${slug}/meta.json`,
 		JSON.stringify(updatedMeta, null, 2),
-		{
-			access: "public",
-			contentType: "application/json",
-			addRandomSuffix: false,
-			allowOverwrite: true,
-		},
+		"application/json",
 	);
 
 	return updatedMeta;
@@ -160,18 +155,17 @@ export async function POST(
 			`Generated audio: ${buffer.length} bytes, ~${duration} seconds`,
 		);
 
-		// Upload to Blob storage
-		const audioBlob = await put(`blog/posts/${slug}/audio.mp3`, buffer, {
-			access: "public",
-			contentType: "audio/mpeg",
-			addRandomSuffix: false,
-			allowOverwrite: true,
-		});
+		// Upload to R2 storage
+		const audioResult = await putObject(
+			`blog/posts/${slug}/audio.mp3`,
+			buffer,
+			"audio/mpeg",
+		);
 
 		// Update meta with audio info
 		await updateMeta(slug, {
 			audioStatus: "ready",
-			audioUrl: audioBlob.url,
+			audioUrl: audioResult.url,
 			audioDuration: duration,
 		});
 
@@ -181,7 +175,7 @@ export async function POST(
 			success: true,
 			slug,
 			audioStatus: "ready",
-			audioUrl: audioBlob.url,
+			audioUrl: audioResult.url,
 			audioDuration: duration,
 		});
 	} catch (error) {

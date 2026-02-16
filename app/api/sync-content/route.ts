@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
-import { put } from "@vercel/blob";
 import { type NextRequest, NextResponse } from "next/server";
 import { getBlocks, getDatabase, getPage } from "@/lib/notion";
+import { objectExists, putObject, R2_PUBLIC_URL } from "@/lib/r2";
 import { getPageSlug } from "@/lib/utils";
 import type {
 	NotionPage,
@@ -24,14 +24,15 @@ function generateContentHash(content: object): string {
 }
 
 /**
- * Try to fetch existing meta.json from Blob storage
+ * Try to fetch existing meta.json from R2 storage
  */
 async function fetchExistingMeta(slug: string): Promise<PostMeta | null> {
 	try {
-		const blobUrl = process.env.NEXT_PUBLIC_BLOB_URL;
-		if (!blobUrl) return null;
+		if (!R2_PUBLIC_URL) return null;
 
-		const response = await fetch(`${blobUrl}/blog/posts/${slug}/meta.json`);
+		const response = await fetch(
+			`${R2_PUBLIC_URL}/blog/posts/${slug}/meta.json`,
+		);
 		if (response.ok) {
 			return (await response.json()) as PostMeta;
 		}
@@ -42,19 +43,16 @@ async function fetchExistingMeta(slug: string): Promise<PostMeta | null> {
 }
 
 /**
- * Check if audio.mp3 file exists in Blob storage (to recover orphaned audio files)
+ * Check if audio.mp3 file exists in R2 storage (to recover orphaned audio files)
  */
 async function checkExistingAudio(
 	slug: string,
 ): Promise<{ audioUrl: string | null; audioDuration: number | null }> {
 	try {
-		const blobUrl = process.env.NEXT_PUBLIC_BLOB_URL;
-		if (!blobUrl) return { audioUrl: null, audioDuration: null };
+		const exists = await objectExists(`blog/posts/${slug}/audio.mp3`);
 
-		const audioUrl = `${blobUrl}/blog/posts/${slug}/audio.mp3`;
-		const response = await fetch(audioUrl, { method: "HEAD" });
-
-		if (response.ok) {
+		if (exists && R2_PUBLIC_URL) {
+			const audioUrl = `${R2_PUBLIC_URL}/blog/posts/${slug}/audio.mp3`;
 			console.log(`Found orphaned audio file for ${slug}, preserving URL`);
 			return { audioUrl, audioDuration: null };
 		}
@@ -139,16 +137,11 @@ async function processPost(
 		if (hasChanged) {
 			console.log(`Content changed for ${slug}, updating...`);
 
-			// Store content.json
-			await put(
+			// Store content.json in R2
+			await putObject(
 				`blog/posts/${slug}/content.json`,
 				JSON.stringify(content, null, 2),
-				{
-					access: "public",
-					contentType: "application/json",
-					addRandomSuffix: false,
-					allowOverwrite: true,
-				},
+				"application/json",
 			);
 
 			// If no existing meta, check for orphaned audio files
@@ -175,12 +168,11 @@ async function processPost(
 				audioDuration,
 			};
 
-			await put(`blog/posts/${slug}/meta.json`, JSON.stringify(meta, null, 2), {
-				access: "public",
-				contentType: "application/json",
-				addRandomSuffix: false,
-				allowOverwrite: true,
-			});
+			await putObject(
+				`blog/posts/${slug}/meta.json`,
+				JSON.stringify(meta, null, 2),
+				"application/json",
+			);
 
 			// Only trigger audio generation for new articles (no existing meta)
 			if (!existingMeta) {
@@ -311,12 +303,11 @@ export async function POST(
 			totalPosts: indexPosts.length,
 		};
 
-		await put("blog/index.json", JSON.stringify(index, null, 2), {
-			access: "public",
-			contentType: "application/json",
-			addRandomSuffix: false,
-			allowOverwrite: true,
-		});
+		await putObject(
+			"blog/index.json",
+			JSON.stringify(index, null, 2),
+			"application/json",
+		);
 
 		console.log("Content sync completed");
 
