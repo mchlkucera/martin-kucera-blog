@@ -42,3 +42,9 @@ yarn-error.log*
 .env*.local
 .env.production
 .env.vercel.temp
+
+# build cache
+tsconfig.tsbuildinfo
+
+# use npm, not yarn
+yarn.lock
