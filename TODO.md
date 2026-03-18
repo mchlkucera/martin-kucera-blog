@@ -1,12 +1,11 @@
 # TODO
 
+## Completed
+
+### Audio Migration from Vercel Blob to R2 (2026-03-18)
+
+Audio files migrated from Vercel Blob to Cloudflare R2. All 14 articles have working audio players. Vercel Blob store can be deleted.
+
 ## Pending Tasks
 
-### Audio Regeneration (After ElevenLabs Quota Reset)
-
-**Priority:** High
-**When:** After next ElevenLabs billing cycle (quota resets monthly)
-
-The blog's audio files need to be regenerated after migrating storage from Vercel Blob to Cloudflare R2. The original audio files could not be migrated because Vercel Blob was blocked.
-
-See: [docs/audio-regeneration.md](docs/audio-regeneration.md)
+None.
