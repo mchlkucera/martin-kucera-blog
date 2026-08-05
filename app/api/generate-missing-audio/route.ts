@@ -51,6 +51,8 @@ export async function GET(
 				maxRuntime: 10,
 			},
 		);
+		// Serverless freezes on response — flush or the check-in never sends
+		await Sentry.flush(2000);
 
 		for (const slug of missing.slice(0, MAX_PER_RUN)) {
 			const post = database.find((p) => getPageSlug(p) === slug);
