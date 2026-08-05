@@ -313,6 +313,18 @@ export async function POST(
 
 		console.log("Content sync completed");
 
+		// Dead-man's switch: Sentry alerts if this daily check-in stops arriving
+		Sentry.captureCheckIn(
+			{ monitorSlug: "sync-content", status: "ok" },
+			{
+				schedule: { type: "crontab", value: "0 5 * * *" },
+				// Hobby-plan crons can fire up to an hour late
+				checkinMargin: 180,
+				maxRuntime: 10,
+				timezone: "Etc/UTC",
+			},
+		);
+
 		return NextResponse.json({
 			success: true,
 			results: syncResults,
