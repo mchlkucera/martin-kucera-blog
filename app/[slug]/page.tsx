@@ -430,11 +430,11 @@ export default async function Post({
 						className="w-max flex items-center my-6 md:my-12 md:mt-16 relative text-gray-400"
 					>
 						<div className="relative mr-8 hover:underline transition">
-							&larr; Zpet na seznam
+							&larr; Zpět na seznam
 						</div>
 						<h1 className="text-xl hover:underline">Martin Kucera</h1>
 					</Link>
-					<div>Clanek nenalezen. Byl bud prejmenovan nebo odstranen.</div>
+					<div>Článek nenalezen. Byl buď přejmenován nebo odstraněn.</div>
 				</main>
 			</div>
 		);
@@ -448,7 +448,7 @@ export default async function Post({
 					className="w-max flex items-center my-6 md:my-12 md:mt-16 relative text-gray-400"
 				>
 					<div className="relative mr-8 hover:underline transition">
-						&larr; Zpet
+						&larr; Zpět
 					</div>
 					<h1 className="text-xl hover:underline">Martin Kucera</h1>
 				</Link>
@@ -479,7 +479,7 @@ export default async function Post({
 								className="flex-1 p-4 rounded border border-gray-200 hover:bg-gray-100 transition text-left"
 							>
 								<span className="text-xs text-gray-400 block mb-1">
-									Predchozi
+									Předchozí
 								</span>
 								<span className="text-gray-700">{previousArticle.title}</span>
 							</Link>
@@ -491,7 +491,7 @@ export default async function Post({
 								href={`/${nextArticle.slug}`}
 								className="flex-1 p-4 rounded border border-gray-200 hover:bg-gray-100 transition text-right"
 							>
-								<span className="text-xs text-gray-400 block mb-1">Dalsi</span>
+								<span className="text-xs text-gray-400 block mb-1">Další</span>
 								<span className="text-gray-700">{nextArticle.title}</span>
 							</Link>
 						) : (
