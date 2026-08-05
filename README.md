@@ -9,17 +9,17 @@ Personal blog at [kuceramartin.com](https://www.kuceramartin.com). Content is wr
 
 Notion title rules: plain text, no bold, no manual numbering — the site numbers articles itself and derives the URL slug from the title.
 
-### Audio (optional, manual)
+### Audio (automatic)
 
-After publishing a new article, generate its narration from a laptop:
+A daily Vercel cron (`/api/generate-missing-audio`, 06:00 UTC) finds articles without `blog/posts/<slug>/audio.mp3` in R2 and generates the narration. New articles get audio within a day; the player appears automatically once the file exists. The run is stateless and idempotent — file presence in R2 is the only state — and reports to Sentry (errors + a daily check-in, so you're alerted if it stops running).
+
+To generate immediately instead of waiting for the cron:
 
 ```bash
 vercel env pull .env.audio --environment=production
 npx tsx --env-file=.env.audio scripts/generate-audio.ts <slug>
 rm .env.audio
 ```
-
-The player appears automatically once `blog/posts/<slug>/audio.mp3` exists in R2.
 
 ## Architecture
 
