@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import * as Sentry from "@sentry/nextjs";
 import { type NextRequest, NextResponse } from "next/server";
 import { getBlocks, getDatabase, getPage } from "@/lib/notion";
 import { objectExists, putObject, R2_PUBLIC_URL } from "@/lib/r2";
@@ -206,6 +207,7 @@ async function processPost(
 		};
 	} catch (error) {
 		console.error(`Error processing ${slug}:`, (error as Error).message);
+		Sentry.captureException(error, { tags: { route: "sync-content", slug } });
 		return {
 			syncResult: {
 				slug,
@@ -319,6 +321,7 @@ export async function POST(
 		});
 	} catch (error) {
 		console.error("Sync error:", error);
+		Sentry.captureException(error, { tags: { route: "sync-content" } });
 		return NextResponse.json(
 			{
 				success: false,

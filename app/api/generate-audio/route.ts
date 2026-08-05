@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/nextjs";
 import { type NextRequest, NextResponse } from "next/server";
 import { generateAudio, isAudioGenerationEnabled } from "@/lib/audio-generator";
 import { putObject, R2_PUBLIC_URL } from "@/lib/r2";
@@ -180,6 +181,7 @@ export async function POST(
 		});
 	} catch (error) {
 		console.error(`Audio generation failed for ${slug}:`, error);
+		Sentry.captureException(error, { tags: { route: "generate-audio", slug } });
 
 		// Update meta with failed status
 		try {
