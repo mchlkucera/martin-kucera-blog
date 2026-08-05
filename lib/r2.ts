@@ -7,12 +7,10 @@ import {
 } from "@aws-sdk/client-s3";
 
 // R2 Configuration
-// Values are trimmed because credentials pasted into Vercel with a trailing
-// newline break AWS SigV4 signing ("Invalid character in header content")
-const R2_ACCOUNT_ID = process.env.R2_ACCOUNT_ID?.trim();
-const R2_ACCESS_KEY_ID = process.env.R2_ACCESS_KEY_ID?.trim();
-const R2_SECRET_ACCESS_KEY = process.env.R2_SECRET_ACCESS_KEY?.trim();
-const R2_BUCKET_NAME = process.env.R2_BUCKET_NAME?.trim();
+const R2_ACCOUNT_ID = process.env.R2_ACCOUNT_ID;
+const R2_ACCESS_KEY_ID = process.env.R2_ACCESS_KEY_ID;
+const R2_SECRET_ACCESS_KEY = process.env.R2_SECRET_ACCESS_KEY;
+const R2_BUCKET_NAME = process.env.R2_BUCKET_NAME;
 
 // Public URL for serving files (r2.dev subdomain or custom domain)
 export const R2_PUBLIC_URL = process.env.NEXT_PUBLIC_R2_PUBLIC_URL;
