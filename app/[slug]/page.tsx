@@ -2,7 +2,8 @@ import Link from "next/link";
 import { Fragment } from "react";
 import AudioPlayer from "@/components/AudioPlayer";
 import { getBlocks, getDatabase, getPage } from "@/lib/notion";
-import { BLOB_URL, databaseId, getPageSlug } from "@/lib/utils";
+import { R2_PUBLIC_URL } from "@/lib/r2";
+import { databaseId, getPageSlug } from "@/lib/utils";
 import type {
 	ArticleNavLink,
 	NotionBlock,
@@ -325,7 +326,7 @@ async function getPostData(slug: string): Promise<PostData> {
 	let nextArticle: ArticleNavLink | null = null;
 
 	try {
-		// Get database for navigation (needed for both blob and Notion paths)
+		// Get database for navigation (needed for both R2 and Notion paths)
 		const database = await getDatabase(databaseId);
 
 		// Find current article index
@@ -349,14 +350,14 @@ async function getPostData(slug: string): Promise<PostData> {
 			};
 		}
 
-		// Try fetching from Blob storage first
-		if (BLOB_URL) {
+		// Try fetching from R2 storage first
+		if (R2_PUBLIC_URL) {
 			try {
 				const [contentRes, metaRes] = await Promise.all([
-					fetch(`${BLOB_URL}/blog/posts/${slug}/content.json`, {
+					fetch(`${R2_PUBLIC_URL}/blog/posts/${slug}/content.json`, {
 						next: { revalidate: 60 },
 					}),
-					fetch(`${BLOB_URL}/blog/posts/${slug}/meta.json`, {
+					fetch(`${R2_PUBLIC_URL}/blog/posts/${slug}/meta.json`, {
 						next: { revalidate: 60 },
 					}),
 				]);
@@ -376,7 +377,7 @@ async function getPostData(slug: string): Promise<PostData> {
 					}
 				}
 			} catch {
-				// Blob fetch failed, falling back to Notion
+				// R2 fetch failed, falling back to Notion
 			}
 		}
 

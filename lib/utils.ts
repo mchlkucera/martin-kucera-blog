@@ -15,5 +15,3 @@ export function getPageSlug(page: NotionPage): string {
 }
 
 export const databaseId = process.env.NOTION_DATABASE_ID;
-// R2 public URL for serving files (replaces Vercel Blob)
-export const BLOB_URL = process.env.NEXT_PUBLIC_R2_PUBLIC_URL;
