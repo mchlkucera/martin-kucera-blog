@@ -1,6 +1,4 @@
 import {
-	DeleteObjectCommand,
-	GetObjectCommand,
 	HeadObjectCommand,
 	PutObjectCommand,
 	S3Client,
@@ -65,35 +63,6 @@ export async function putObject(
 }
 
 /**
- * Get an object from R2
- */
-export async function getObject(key: string): Promise<Buffer> {
-	if (!R2_BUCKET_NAME) {
-		throw new Error("R2_BUCKET_NAME not configured");
-	}
-
-	const client = getR2Client();
-
-	const response = await client.send(
-		new GetObjectCommand({
-			Bucket: R2_BUCKET_NAME,
-			Key: key,
-		}),
-	);
-
-	if (!response.Body) {
-		throw new Error(`No body in response for key: ${key}`);
-	}
-
-	// Convert stream to buffer
-	const chunks: Uint8Array[] = [];
-	for await (const chunk of response.Body as AsyncIterable<Uint8Array>) {
-		chunks.push(chunk);
-	}
-	return Buffer.concat(chunks);
-}
-
-/**
  * Check if an object exists in R2
  */
 export async function objectExists(key: string): Promise<boolean> {
@@ -115,20 +84,3 @@ export async function objectExists(key: string): Promise<boolean> {
 	}
 }
 
-/**
- * Delete an object from R2
- */
-export async function deleteObject(key: string): Promise<void> {
-	if (!R2_BUCKET_NAME) {
-		throw new Error("R2_BUCKET_NAME not configured");
-	}
-
-	const client = getR2Client();
-
-	await client.send(
-		new DeleteObjectCommand({
-			Bucket: R2_BUCKET_NAME,
-			Key: key,
-		}),
-	);
-}

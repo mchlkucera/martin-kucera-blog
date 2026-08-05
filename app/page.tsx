@@ -1,22 +1,10 @@
 import Link from "next/link";
 import { getDatabase } from "@/lib/notion";
-import { R2_PUBLIC_URL } from "@/lib/r2";
 import { databaseId, getPageSlug } from "@/lib/utils";
-import type { NotionPage, NotionRichTextItem } from "@/types";
+import type { NotionRichTextItem } from "@/types";
 
-// Revalidate every 60 seconds
-export const revalidate = 60;
-
-interface IndexPost {
-	id: string;
-	lastEditedTime: string;
-	createdTime: string;
-	properties: NotionPage["properties"];
-}
-
-interface BlogIndex {
-	posts: IndexPost[];
-}
+// Revalidate every 10 minutes — content changes ~monthly
+export const revalidate = 600;
 
 function Text({ text }: { text: NotionRichTextItem[] | null | undefined }) {
 	if (!text) {
@@ -54,34 +42,8 @@ function Text({ text }: { text: NotionRichTextItem[] | null | undefined }) {
 	);
 }
 
-async function getPosts(): Promise<NotionPage[]> {
-	// Try fetching from R2 storage first
-	if (R2_PUBLIC_URL) {
-		try {
-			const response = await fetch(`${R2_PUBLIC_URL}/blog/index.json`, {
-				next: { revalidate: 60 },
-			});
-			if (response.ok) {
-				const data: BlogIndex = await response.json();
-				// Transform R2 index format to match Notion format
-				return data.posts.map((post) => ({
-					id: post.id,
-					last_edited_time: post.lastEditedTime,
-					created_time: post.createdTime,
-					properties: post.properties,
-				})) as NotionPage[];
-			}
-		} catch {
-			// R2 fetch failed, falling back to Notion
-		}
-	}
-
-	// Fallback to direct Notion API call
-	return await getDatabase(databaseId);
-}
-
 export default async function Home() {
-	const posts = await getPosts();
+	const posts = await getDatabase(databaseId);
 	const year = new Date().getFullYear();
 	const dateOptions: Intl.DateTimeFormatOptions = {
 		year: "numeric",

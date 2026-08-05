@@ -79,14 +79,35 @@ export function chunkTextAtSentences(
 }
 
 /**
- * Generate audio for a single text chunk with retry logic using ElevenLabs
+ * Generate audio for a single text chunk with retry logic using ElevenLabs.
+ * Uses previous_text/next_text for voice continuity across chunks.
  */
 async function generateAudioChunk(
 	text: string,
+	previousText?: string,
+	nextText?: string,
 	attempt: number = 1,
 ): Promise<Buffer> {
 	try {
 		const voiceId = process.env.ELEVENLABS_VOICE_ID || DEFAULT_VOICE_ID;
+
+		const body: Record<string, unknown> = {
+			text: text,
+			model_id: MODEL_ID,
+			voice_settings: {
+				stability: 0.65,
+				similarity_boost: 0.75,
+				style: 0.0,
+				use_speaker_boost: true,
+			},
+		};
+
+		if (previousText !== undefined) {
+			body.previous_text = previousText;
+		}
+		if (nextText !== undefined) {
+			body.next_text = nextText;
+		}
 
 		const response = await fetch(`${ELEVENLABS_API_URL}/${voiceId}`, {
 			method: "POST",
@@ -94,16 +115,7 @@ async function generateAudioChunk(
 				"xi-api-key": process.env.ELEVENLABS_API_KEY || "",
 				"Content-Type": "application/json",
 			},
-			body: JSON.stringify({
-				text: text,
-				model_id: MODEL_ID,
-				voice_settings: {
-					stability: 0.5,
-					similarity_boost: 0.75,
-					style: 0.0,
-					use_speaker_boost: true,
-				},
-			}),
+			body: JSON.stringify(body),
 		});
 
 		if (!response.ok) {
@@ -129,7 +141,7 @@ async function generateAudioChunk(
 		);
 		await sleep(delay);
 
-		return generateAudioChunk(text, attempt + 1);
+		return generateAudioChunk(text, previousText, nextText, attempt + 1);
 	}
 }
 
@@ -154,7 +166,9 @@ export async function generateAudio(
 		console.log(
 			`Processing chunk ${i + 1}/${chunks.length} (${chunks[i].length} chars)...`,
 		);
-		const buffer = await generateAudioChunk(chunks[i]);
+		const previousText = i > 0 ? chunks[i - 1] : undefined;
+		const nextText = i < chunks.length - 1 ? chunks[i + 1] : undefined;
+		const buffer = await generateAudioChunk(chunks[i], previousText, nextText);
 		audioBuffers.push(buffer);
 
 		// Small delay between chunks to respect rate limits

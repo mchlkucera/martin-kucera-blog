@@ -79,42 +79,6 @@ export interface NotionBlock {
 }
 
 // Blog post types
-export interface BlogPost {
-	id: string;
-	slug: string;
-	title: string;
-	lastEditedTime: string;
-	createdTime: string;
-	properties: NotionPageProperties;
-}
-
-export interface BlogIndex {
-	posts: BlogPost[];
-	updatedAt: string;
-	totalPosts: number;
-}
-
-export interface PostMeta {
-	slug: string;
-	pageId: string;
-	contentHash: string;
-	title: string;
-	lastEditedTime: string;
-	createdTime: string;
-	syncedAt: string;
-	audioStatus: "pending" | "generating" | "ready" | "failed" | "none";
-	audioUrl: string | null;
-	audioDuration: number | null;
-	audioError?: string;
-	updatedAt?: string;
-}
-
-export interface PostContent {
-	page: NotionPage;
-	blocks: NotionBlock[];
-	fetchedAt: string;
-}
-
 // Navigation types
 export interface ArticleNavLink {
 	slug: string;
@@ -128,30 +92,6 @@ export interface AudioGenerationResult {
 }
 
 // API response types
-export interface SyncResult {
-	slug: string;
-	status: "updated" | "unchanged" | "error";
-	error?: string;
-}
-
-export interface SyncResponse {
-	success: boolean;
-	results?: SyncResult[];
-	totalPosts?: number;
-	syncedAt?: string;
-	error?: string;
-}
-
-export interface AudioGenerationResponse {
-	success: boolean;
-	slug: string;
-	audioStatus: "ready" | "none" | "failed";
-	audioUrl?: string;
-	audioDuration?: number;
-	message?: string;
-	error?: string;
-}
-
 // Component props
 export interface AudioPlayerProps {
 	audioUrl: string;

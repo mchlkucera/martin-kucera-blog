@@ -9,13 +9,11 @@ import type {
 	NotionBlock,
 	NotionPage,
 	NotionRichTextItem,
-	PostContent,
-	PostMeta,
 } from "@/types";
 import styles from "./post.module.css";
 
-// Revalidate every 60 seconds
-export const revalidate = 60;
+// Revalidate every 10 minutes — content changes ~monthly
+export const revalidate = 600;
 
 // Generate static params for all posts
 export async function generateStaticParams() {
@@ -318,92 +316,67 @@ interface PostData {
 }
 
 async function getPostData(slug: string): Promise<PostData> {
-	let page: NotionPage | null = null;
-	let blocks: NotionBlock[] | null = null;
-	let audioUrl: string | null = null;
-	let audioDuration: number | null = null;
+	const database = await getDatabase(databaseId);
+
+	// Find current article; unknown slugs render the not-found state
+	const currentIndex = database.findIndex((p) => {
+		return p.id === slug || getPageSlug(p) === slug;
+	});
+	if (currentIndex === -1) {
+		return {
+			page: null,
+			blocks: null,
+			audioUrl: null,
+			audioDuration: null,
+			previousArticle: null,
+			nextArticle: null,
+		};
+	}
+
 	let previousArticle: ArticleNavLink | null = null;
 	let nextArticle: ArticleNavLink | null = null;
-
-	try {
-		// Get database for navigation (needed for both R2 and Notion paths)
-		const database = await getDatabase(databaseId);
-
-		// Find current article index
-		const currentIndex = database.findIndex((p) => {
-			return p.id === slug || getPageSlug(p) === slug;
-		});
-
-		// Set previous and next articles
-		if (currentIndex > 0) {
-			const prev = database[currentIndex - 1];
-			previousArticle = {
-				slug: getPageSlug(prev),
-				title: prev.properties.Name.title[0]?.plain_text || "",
-			};
-		}
-		if (currentIndex !== -1 && currentIndex < database.length - 1) {
-			const next = database[currentIndex + 1];
-			nextArticle = {
-				slug: getPageSlug(next),
-				title: next.properties.Name.title[0]?.plain_text || "",
-			};
-		}
-
-		// Try fetching from R2 storage first
-		if (R2_PUBLIC_URL) {
-			try {
-				const [contentRes, metaRes] = await Promise.all([
-					fetch(`${R2_PUBLIC_URL}/blog/posts/${slug}/content.json`, {
-						next: { revalidate: 60 },
-					}),
-					fetch(`${R2_PUBLIC_URL}/blog/posts/${slug}/meta.json`, {
-						next: { revalidate: 60 },
-					}),
-				]);
-
-				if (contentRes.ok) {
-					const content: PostContent = await contentRes.json();
-					page = content.page;
-					blocks = content.blocks;
-				}
-
-				if (metaRes.ok) {
-					const meta: PostMeta = await metaRes.json();
-					// Show audio if URL exists, regardless of status (e.g., "failed" regeneration but old audio still works)
-					if (meta.audioUrl) {
-						audioUrl = meta.audioUrl;
-						audioDuration = meta.audioDuration;
-					}
-				}
-			} catch {
-				// R2 fetch failed, falling back to Notion
-			}
-		}
-
-		// Fallback to direct Notion API call
-		if (!page || !blocks) {
-			const foundPostSlug = database.find((p) => {
-				return getPageSlug(p) === slug;
-			});
-
-			let pageId = slug;
-			if (foundPostSlug) pageId = foundPostSlug.id;
-			page = await getPage(pageId);
-			blocks = await getBlocks(pageId);
-		}
-	} catch {
-		// Return null values on error
+	if (currentIndex > 0) {
+		const prev = database[currentIndex - 1];
+		previousArticle = {
+			slug: getPageSlug(prev),
+			title: prev.properties.Name.title[0]?.plain_text || "",
+		};
 	}
+	if (currentIndex < database.length - 1) {
+		const next = database[currentIndex + 1];
+		nextArticle = {
+			slug: getPageSlug(next),
+			title: next.properties.Name.title[0]?.plain_text || "",
+		};
+	}
+
+	const pageId = database[currentIndex].id;
+	const canonicalSlug = getPageSlug(database[currentIndex]);
+	const [page, blocks, audioUrl] = await Promise.all([
+		getPage(pageId),
+		getBlocks(pageId),
+		findAudioUrl(canonicalSlug),
+	]);
 
 	return {
 		page,
 		blocks,
 		audioUrl,
-		audioDuration,
+		audioDuration: null,
 		previousArticle,
 		nextArticle,
 	};
+}
+
+// Audio lives at a deterministic R2 key; the player renders only if the file exists
+async function findAudioUrl(slug: string): Promise<string | null> {
+	if (!R2_PUBLIC_URL) return null;
+	const url = `${R2_PUBLIC_URL}/blog/posts/${slug}/audio.mp3`;
+	const res = await fetch(url, {
+		method: "HEAD",
+		next: { revalidate: 600 },
+	});
+	return res.ok ? url : null;
 }
 
 export default async function Post({
