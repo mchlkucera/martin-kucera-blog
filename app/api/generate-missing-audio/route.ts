@@ -6,12 +6,14 @@ import { objectExists, putObject } from "@/lib/r2";
 import { extractTextFromBlocks } from "@/lib/text-extractor";
 import { databaseId, getPageSlug } from "@/lib/utils";
 
-export const maxDuration = 300;
+// Hobby plan hard limit. Typical articles fit; a too-long article
+// fails loudly in Sentry — use scripts/generate-audio.ts (no timeout).
+export const maxDuration = 60;
 
 // Daily cron: generate audio for any article that doesn't have one yet.
 // Stateless and idempotent — the presence of audio.mp3 in R2 is the only
 // state. One article per run: generation is slow (chunked TTS) and must
-// fit the 300s budget; a backlog heals on following days.
+// fit the 60s budget; a backlog heals on following days.
 const MAX_PER_RUN = 1;
 
 export async function GET(
